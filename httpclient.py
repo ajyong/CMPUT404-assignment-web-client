@@ -23,6 +23,8 @@ import socket
 import re
 # you may use urllib to encode data appropriately
 import urllib
+# parsing input URL to get host and port
+import urlparse
 
 def help():
     print "httpclient.py [GET/POST] [URL]\n"
@@ -33,16 +35,51 @@ class HTTPRequest(object):
         self.body = body
 
 class HTTPClient(object):
-    #def get_host_port(self,url):
+    # request parsing functions
+    def get_port(self,url):
+        if url is not None:
+            colon_pos = url.rfind(":")
+            end = url.find("/", colon_pos)
+
+            return url[colon_pos + 1:end]
+        else:
+            return None
+    def get_host(self, url):
+        if url is not None:
+            almost_start = url.find(":")
+            end = url.rfind(":")
+
+            if almost_start == end:
+                # then there was no http://, get everything up to :PORT
+                return url[:end]
+            else:
+                # then there was http://, get everything between it and :PORT
+                return url[almost_start + 3:end]
+        else:
+            return None
+
+    def get_path(self,url):
+        if url is not None:
+            colon_pos = url.rfind(":")
+            slash_pos = url.find("/", colon_pos)
+
+            return url[slash_pos:]
+        else:
+            return None
 
     def connect(self, host, port):
-        # use sockets!
-        return None
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.connect((host, port))
+            return s
+        except Exception as e:
+            return None
 
+    # response parsing functions
     def get_code(self, data):
         return None
 
-    def get_headers(self,data):
+    def get_headers(self, data):
         return None
 
     def get_body(self, data):
@@ -63,6 +100,19 @@ class HTTPClient(object):
     def GET(self, url, args=None):
         code = 500
         body = ""
+        print url
+
+        host = self.get_host(url)
+        port = self.get_port(url)
+        path = self.get_path(url)
+
+        print "%s %s %s" % (host, port, path)
+
+        sock = self.connect(url, 80)
+        if sock != None:
+            data = self.recvall(sock)
+            code = self.get_code(data)
+            body = self.get_body(data)
         return HTTPRequest(code, body)
 
     def POST(self, url, args=None):
@@ -83,6 +133,6 @@ if __name__ == "__main__":
         help()
         sys.exit(1)
     elif (len(sys.argv) == 3):
-        print client.command( sys.argv[1], sys.argv[2] )
+        print client.command( sys.argv[2], sys.argv[1] )
     else:
-        print client.command( command, sys.argv[1] )    
+        print client.command( sys.argv[1], command )    
