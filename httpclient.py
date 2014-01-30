@@ -104,7 +104,6 @@ class HTTPClient(object):
 
     def connect(self, host, port):
         try:
-            socket.setdefaulttimeout(2)
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect((host, int(port)))
             print "Connected to %s at port %s" % (host, port)
@@ -115,13 +114,20 @@ class HTTPClient(object):
 
     # response parsing functions
     def get_code(self, data):
-        return None
+        return data[8:11]
 
     def get_headers(self, data):
         return None
 
     def get_body(self, data):
-        return None
+        lines = data.splitlines(True)
+        blank_line_pos = -1
+
+        for i in range(len(lines)):
+            if line[i] == "\r\n" or line[i] == "\n" or line[i] == "\r":
+                blank_line_pos = i
+
+
 
     # read everything from the socket
     def recvall(self, sock):
@@ -149,7 +155,7 @@ class HTTPClient(object):
         if sock != None:
             request = "GET %s HTTP/1.1\r\n" \
                       "Host: %s\r\n" \
-                      "Accept: */*\r\n" % (path, host)
+                      "Accept: */*\r\n\r\n" % (path, host)
 
             print request
 
