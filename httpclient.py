@@ -38,41 +38,79 @@ class HTTPClient(object):
     # request parsing functions
     def get_port(self,url):
         if url is not None:
-            colon_pos = url.rfind(":")
-            end = url.find("/", colon_pos)
+            colon_pos = -1
+            if url.startswith("http://"):
+                colon_pos = url.find(":", 7)
+            else:
+                colon_pos = url.find(":")
 
-            return url[colon_pos + 1:end]
+            if colon_pos == -1:
+                return "80"
+
+            path_pos = url.find("/", colon_pos)
+            if path_pos == -1:
+                return url[colon_pos + 1:]
+            else:
+                return url[colon_pos + 1:path_pos]
         else:
             return None
+
     def get_host(self, url):
         if url is not None:
-            almost_start = url.find(":")
-            end = url.rfind(":")
+            if url.startswith("http://"):
+                colon_pos = url.find(":", 7)
+                path_pos = url.find("/", 7)
 
-            if almost_start == end:
-                # then there was no http://, get everything up to :PORT
-                return url[:end]
+                if colon_pos != -1:
+                    # if port specified, return string between http:// and :PORT
+                    return url[7:colon_pos]
+                elif path_pos != -1:
+                    # if no port but added paths, return part without http:// and without added paths
+                    return url[7:path_pos]
+                else:
+                    # if no port or added paths, return part of the URL without http://
+                    return url[7:]
             else:
-                # then there was http://, get everything between it and :PORT
-                return url[almost_start + 3:end]
+                # doesn't start with http://
+                colon_pos = url.find(":")
+                path_pos = url.find("/")
+
+                if colon_pos != -1:
+                    # if port specified, return string between http:// and :PORT
+                    return url[:colon_pos]
+                elif path_pos != -1:
+                    # if no port but added paths, return part without http:// and without added paths
+                    return url[:path_pos]
+                else:
+                    # if no port or added paths, return the URL
+                    return url
         else:
             return None
 
     def get_path(self,url):
         if url is not None:
-            colon_pos = url.rfind(":")
-            slash_pos = url.find("/", colon_pos)
+            slash_pos = -1
+            if url.startswith("http://"):
+                slash_pos = url.find("/", 7)
+            else:
+                slash_pos = url.find("/")
 
-            return url[slash_pos:]
+            if slash_pos == -1:
+                return "/"
+            else:
+                return url[slash_pos:]
         else:
             return None
 
     def connect(self, host, port):
         try:
+            socket.setdefaulttimeout(2)
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.connect((host, port))
+            s.connect((host, int(port)))
+            print "Connected to %s at port %s" % (host, port)
             return s
         except Exception as e:
+            print e
             return None
 
     # response parsing functions
@@ -100,7 +138,6 @@ class HTTPClient(object):
     def GET(self, url, args=None):
         code = 500
         body = ""
-        print url
 
         host = self.get_host(url)
         port = self.get_port(url)
@@ -108,11 +145,36 @@ class HTTPClient(object):
 
         print "%s %s %s" % (host, port, path)
 
-        sock = self.connect(url, 80)
+        sock = self.connect(host, port)
         if sock != None:
+            request = "GET %s HTTP/1.1\r\n" \
+                      "Host: %s\r\n" \
+                      "Accept: */*\r\n" % (path, host)
+
+            print request
+
+            try:
+                sock.send(request)
+            except Exception as e:
+                print e
+                sock.shutdown(socket.SHUT_RDWR)
+                sock.close()
+
+                return HTTPRequest(code, body)
+
             data = self.recvall(sock)
-            code = self.get_code(data)
-            body = self.get_body(data)
+            print data
+
+            sock.shutdown(socket.SHUT_RDWR)
+            sock.close()
+
+            # code = self.get_code(data)
+            # body = self.get_body(data)
+        else:
+            print "Socket is none"
+
+        print str(code) + " " + body
+
         return HTTPRequest(code, body)
 
     def POST(self, url, args=None):
