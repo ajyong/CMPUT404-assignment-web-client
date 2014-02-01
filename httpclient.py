@@ -106,7 +106,6 @@ class HTTPClient(object):
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect((host, int(port)))
-            print "Connected to %s at port %s" % (host, port)
             return s
         except Exception as e:
             print e
@@ -114,7 +113,7 @@ class HTTPClient(object):
 
     # response parsing functions
     def get_code(self, data):
-        return data[8:11]
+        return int(data[9:12])
 
     def get_headers(self, data):
         return None
@@ -124,10 +123,15 @@ class HTTPClient(object):
         blank_line_pos = -1
 
         for i in range(len(lines)):
-            if line[i] == "\r\n" or line[i] == "\n" or line[i] == "\r":
+            if lines[i] == "\r\n" or lines[i] == "\n" or lines[i] == "\r":
                 blank_line_pos = i
+                break
 
+        body = ""
+        for j in range(i, len(lines)):
+            body += lines[j]
 
+        return body
 
     # read everything from the socket
     def recvall(self, sock):
@@ -149,15 +153,12 @@ class HTTPClient(object):
         port = self.get_port(url)
         path = self.get_path(url)
 
-        print "%s %s %s" % (host, port, path)
-
         sock = self.connect(host, port)
         if sock != None:
             request = "GET %s HTTP/1.1\r\n" \
                       "Host: %s\r\n" \
+                      "Connection: close\r\n" \
                       "Accept: */*\r\n\r\n" % (path, host)
-
-            print request
 
             try:
                 sock.send(request)
@@ -169,19 +170,20 @@ class HTTPClient(object):
                 return HTTPRequest(code, body)
 
             data = self.recvall(sock)
-            print data
 
             sock.shutdown(socket.SHUT_RDWR)
             sock.close()
 
-            # code = self.get_code(data)
-            # body = self.get_body(data)
+            code = self.get_code(data)
+            body = self.get_body(data)
         else:
             print "Socket is none"
 
-        print str(code) + " " + body
+        req = HTTPRequest(code, body)
+        print "Code: " + str(req.code)
+        print "Host: %s Port: %s Path: %s" % (host, port, path)
 
-        return HTTPRequest(code, body)
+        return req
 
     def POST(self, url, args=None):
         code = 500
