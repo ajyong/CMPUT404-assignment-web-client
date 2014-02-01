@@ -176,14 +176,8 @@ class HTTPClient(object):
 
             code = self.get_code(data)
             body = self.get_body(data)
-        else:
-            print "Socket is none"
 
-        req = HTTPRequest(code, body)
-        print "Code: " + str(req.code)
-        print "Host: %s Port: %s Path: %s" % (host, port, path)
-
-        return req
+        return HTTPRequest(code, body)
 
     def POST(self, url, args=None):
         code = 500
