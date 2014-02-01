@@ -182,6 +182,44 @@ class HTTPClient(object):
     def POST(self, url, args=None):
         code = 500
         body = ""
+
+        host = self.get_host(url)
+        port = self.get_port(url)
+        path = self.get_path(url)
+
+        sock = self.connect(host, port)
+        if sock != None:
+            request = "POST %s HTTP/1.1\r\n" \
+                      "Host: %s\r\n" \
+                      "Connection: close\r\n" \
+                      "Content-Type: application/x-www-form-urlencoded\r\n" \
+                      "Accept: */*\r\n" % (path, host)
+
+            if args != None:
+                form_data = urllib.urlencode(args)
+                request += "Content-Length: %d\r\n" \
+                           "\r\n" \
+                           "%s\r\n" % (len(form_data), form_data)
+            else:
+                request += "Content-Length: 0\r\n\r\n"
+
+            try:
+                sock.send(request)
+            except Exception as e:
+                print e
+                sock.shutdown(socket.SHUT_RDWR)
+                sock.close()
+
+                return HTTPRequest(code, body)
+
+            data = self.recvall(sock)
+
+            sock.shutdown(socket.SHUT_RDWR)
+            sock.close()
+
+            code = self.get_code(data)
+            body = self.get_body(data)
+
         return HTTPRequest(code, body)
 
     def command(self, url, command="GET", args=None):
