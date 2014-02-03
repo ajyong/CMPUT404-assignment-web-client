@@ -155,6 +155,10 @@ class HTTPClient(object):
 
         sock = self.connect(host, port)
         if sock != None:
+            if args != None:
+                form_data = urllib.urlencode(args)
+                path += "?" + form_data
+
             request = "GET %s HTTP/1.1\r\n" \
                       "Host: %s\r\n" \
                       "Connection: close\r\n" \
